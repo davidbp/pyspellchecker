@@ -1,25 +1,40 @@
 import re
 import itertools
 from collections import Counter
+from typing import List, Callable, Optional, Tuple, Iterable
 
 from nltk.collocations import BigramCollocationFinder
 from editdistance import eval as edit_distance
-from .bktree import BKTree
+from bktree import BKTree
 
 
 class SpellChecker:
+    """
+    Basic class to instantiate a spellchecker.
+
+    :param ngram_range: range of the n-gram model.
+    :param tokenizer: tokenizer function to convert a string to a list of tokens.
+    :param vocabulary: vocabulary used to find corrected words.
+    :param string_preprocessor_func: method to preprocess input strings. Defaults as `str.lower`.
+    :param token_pattern: str defining a regular expression used to tokenize.
+    :param lambda_interpolation: interpolation coefficient for not seen n-grams.
+    :param min_freq: minimum frequency needed to store a word in the vocabulary.
+    :param max_dist: maximum distance allowed between a misspelled word and a candidate word.
+    :param sort_candidates: boolean flag, if true candidates are sorted.
+    :param bktree: boolean flag, if true a bktree is used to search candidates.
+    """
     def __init__(
             self,
-            ngram_range=(1, 2),
-            tokenizer=None,
-            vocabulary={},
-            string_preprocessor_func=str.lower,
-            token_pattern=r"(?u)\b\w+|\?",
-            lambda_interpolation=0.3,
-            min_freq=5,
-            max_dist=1,
-            sort_candidates=False,
-            bktree=True,
+            ngram_range: Tuple[int] = (1, 2),
+            tokenizer: Optional[Callable] = None,
+            vocabulary: set = {},
+            string_preprocessor_func: Callable = str.lower,
+            token_pattern: str = r"(?u)\b\w+|\?",
+            lambda_interpolation: float = 0.3,
+            min_freq: int = 5,
+            max_dist: int = 1,
+            sort_candidates: bool = False,
+            bktree: bool = True,
     ):
 
         self.ngram_range = ngram_range
@@ -34,9 +49,11 @@ class SpellChecker:
         self.bktree = bktree
 
     def build_tokenizer(self):
-        """Return a function that splits a string into a sequence of tokens.
-        tokenizer: callable
-        A function to split a string into a sequence of tokens.
+        """
+        Build a function that splits a string into a sequence of tokens.
+
+        If `self.tokenizer` is not None, return it. Otherwise, build a tokenizer
+        from a regular expression stored in `self.token_pattern`.
         """
         if self.tokenizer is not None:
             return self.tokenizer
@@ -50,9 +67,11 @@ class SpellChecker:
 
         return token_pattern.findall
 
-    def fit(self, X):
+    def fit(self, X: Iterable[str]):
         """
-        X iterable of strings (corpus)
+        Updates the parameters of the spell checker with the data in X.
+
+        :param X: Corpus, represented as an iterable of strings.
         """
         self.tokenize_func = self.build_tokenizer()
         X_tokenized = [self.tokenize_func(self.string_preprocessor_func(x)) for x in X]
@@ -69,31 +88,51 @@ class SpellChecker:
                 edit_distance, self.vocabulary, sort_candidates=self.sort_candidates
             )
 
-    def get_candidates(self, token, max_dist):
+    def get_candidates(self, word: str, max_dist: int):
+        """
+        Finds the candidates for `word` that are at most at distance `max_dist`.
+        If `self.bktree` is present it is used to find candidates.
+
+        :param word: word that needs to be corrected.
+        :param max_dist: maximum distance from `word` to a candidate.
+        :return: list of candidate words.
+        """
         if self.bktree:
-            return self.get_candidates_bktree(token, max_dist)
+            return self.get_candidates_bktree(word, max_dist)
         else:
-            return self.get_candidates_exhaustive(token, max_dist)
+            return self.get_candidates_exhaustive(word, max_dist)
 
-    def get_candidates_bktree(self, token, max_dist):
-        """Return a list of candidate words from the vocabulary at most `max_dist` away from the input token."""
-        candidate_tokens = self.bktree.query(token, max_dist)
+    def get_candidates_bktree(self, word: str, max_dist: int):
+        """
+        Return a list of candidate words from the vocabulary at most `max_dist` away from the input token
+        leveraging a bktree.
 
-        if len(candidate_tokens) > 0:
-            return candidate_tokens
+        :param word: word that needs to be corrected.
+        :param max_dist: maximum distance from `word` to a candidate.
+        :return:
+        """
+        candidate_words = self.bktree.query(word, max_dist)
+
+        if len(candidate_words) > 0:
+            return candidate_words
         else:
-            return [token]
+            return [word]
 
-    def get_candidates_exhaustive(self, token, max_dist):
+    def get_candidates_exhaustive(self, word:str , max_dist: int):
         """
-        Return a list of candidate words from the vocabulary at most `max_dist` away from the input token.
-        This version of the function is private and kept for benchmarking pourposes. This function computes the
-        edit dist_func between the input token and all words in the vocabulary. Then it filters candidates by
-        the edit dist_func.
+        Compute the candidate words from the vocabulary at most `max_dist` away from the input token.
+        This function computes the `dist_func` between the input token and all words in the vocabulary.
+        Then it filters candidates by the computed values in `dist_func`.
+        This function is mainly used for benchmarking purposes.
+
+        :param word: input query word.
+        :param max_dist: maximum allowed distance.
+        :return:list of candidate words.
         """
-        token = token.lower()
+
+        word = word.lower()
         distance_token_to_words = {
-            word: edit_distance(word, token) for word in self.vocabulary
+            word: edit_distance(word, word) for word in self.vocabulary
         }
         min_dist = min(distance_token_to_words.values())
         if min_dist <= max_dist:
@@ -115,21 +154,34 @@ class SpellChecker:
 
             return result
         else:
-            return [token]
+            return [word]
 
-    def filter_vocabulary(self, min_freq):
+    def filter_vocabulary(self, min_freq: int):
+        """
+        Filter words from the vocabulary that have lower than `min_freq` counts.
+
+        :param min_freq: minimum frequency to take into consideration.
+        :return:
+        """
+
         self.vocabulary = set(
             dict(
                 filter(lambda x: x[1] > min_freq, self.unigram_freq_dict.items())
             ).keys()
         )
 
-    def correct_with_bigrams(self, tokenized_sentence):
+    def correct_with_bigrams(self, tokenized_sentence: List[str]):
+        """
+        Corrects a list of words, one at a time.
 
-        def prob_word(word):
+        :param tokenized_sentence: list of words.
+        :return: list of words containing (possibly) corrections.
+        """
+
+        def prob_word(word: str):
             return self.unigram_freq_dict.get(word, 0) / len(self.unigram_freq_dict)
 
-        def bigrams_starting_by(word):
+        def bigrams_starting_by(word: str):
             return [t for t in list(self.bigram_freq_dict.keys()) if t[0] == word]
 
         def count_bigrams(list_bigrams):
@@ -137,7 +189,7 @@ class SpellChecker:
                 [self.bigram_freq_dict.get(bigram, 0) for bigram in list_bigrams]
             )
 
-        def probability_bigram(word1, word2, bigram_freq_dict):
+        def probability_bigram(word1: str, word2: str):
             bigram = (word1, word2)
             if self.bigram_freq_dict.get(bigram, 0) == 0:
                 return 0
@@ -146,7 +198,7 @@ class SpellChecker:
                     bigrams_starting_by(word1)
                 )
 
-        def interpolation_probability(word1, word2):
+        def interpolation_probability(word1: str, word2: str):
             return (1 - self.lambda_interpolation) * probability_bigram(
                 word1, word2, self.bigram_freq_dict
             ) + self.lambda_interpolation * prob_word(word2)
@@ -158,7 +210,7 @@ class SpellChecker:
                 else:
                     previous_word = tokenized_sentence[index - 1]
 
-                if word in {'?', '!','b'}:
+                if word in {'?', '!'}:
                     continue
                 candidates = {
                     candidate: interpolation_probability(previous_word, candidate)
@@ -169,9 +221,13 @@ class SpellChecker:
 
         return tokenized_sentence
 
-    def transform(self, x, tokenize=True):
-        """Corrects the misspelled words on each element from X.
-        X iterable of strings
+    def transform(self, x: Iterable[str], tokenize: bool = True):
+        """
+        Correct the misspelled words on each element in x.
+
+        :param x: Iterable of strings
+        :param tokenize: tokenization flag. If true it tokenizes x.
+        :return: tokenized sentences
         """
         x = self.string_preprocessor_func(x)
 

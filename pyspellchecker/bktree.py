@@ -2,15 +2,17 @@
 from typing import Iterable, Callable, Tuple
 
 class BKTree:
+    """
+    BKTree for storing and querying objects using discrete distances.
+
+    :param dist_func: dist_func function used to compute dist_func between words.
+    :param words: Sequence of words to be stored in the BKTree.
+    :param sort_candidates: Boolean flag to sort candidates when `.query` is called.
+    """
+
     def __init__(
         self, dist_func: Callable, words: Iterable[str], sort_candidates: bool = False
     ):
-        """BKTree for storing and querying using discrete distances.
-
-        :param dist_func: dist_func function used to compute dist_func between words.
-        :param words: Sequence of words to be stored in the BKTree.
-        :param sort_candidates: Boolean flag to sort candidates when `.query` is called.
-        """
         self.dist_func = dist_func
         self.sort_candidates = sort_candidates
 
@@ -41,7 +43,8 @@ class BKTree:
         dist_func: Callable,
         query_word: str,
     ):
-        """Retrieve descendants of a parent node.
+        """
+        Retrieve descendants of a parent node.
 
         :param parent: parent node of the form `(str, dict)`.
         :param max_dist: maximum distance to the parent node.
@@ -69,7 +72,8 @@ class BKTree:
     def query(
         self, query_word: str, max_dist: int, return_distances: bool = False
     ):
-        """Search closest to que a query.
+        """
+        Search closest to que a query.
 
         Search all words that are at maximum distance of `max_dist` to the input `query_word` according to `self.dist_func`.
         Words at distance `max_dist` are included in the set of retrieved words.
