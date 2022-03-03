@@ -117,7 +117,7 @@ class BKTree:
     @property
     def vocabulary(self):
         """
-        Searches all stored words in the bktree.
+        Return all stored words in the bktree.
 
         :return: list of words store in the bktree.
         """
