@@ -14,5 +14,6 @@ setup(
    author_email='david.buchaca.prats@gmail.com',
    url="https://github.com/davidbp/pyspellchecker",
    packages=['pyspellchecker'],
-   install_requires=['nltk', 'editdistance'],
+   install_requires=['nltk', 'editdistance', 'spacy'],
+   extras_require={ 'test': ['pytest']}
 )
