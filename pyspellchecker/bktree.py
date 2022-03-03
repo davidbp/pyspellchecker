@@ -1,5 +1,5 @@
-
 from typing import Iterable, Callable, Tuple
+
 
 class BKTree:
     """
@@ -24,7 +24,8 @@ class BKTree:
             self._add_word(self.tree, i)
 
     def _add_word(self, parent: Tuple[str, dict], word: str):
-        """Add word to the BKTree.
+        """
+        Add word to the BKTree.
 
         :param parent: parent node composed of (word, subtree).
         :param word: word to be added.
@@ -69,9 +70,7 @@ class BKTree:
 
         return results
 
-    def query(
-        self, query_word: str, max_dist: int, return_distances: bool = False
-    ):
+    def query(self, query_word: str, max_dist: int, return_distances: bool = False):
         """
         Search closest to que a query.
 
@@ -99,3 +98,29 @@ class BKTree:
             return distance_candidate_list
         else:
             return [x[1] for x in distance_candidate_list]
+
+    def _search_all_descendants(self, parent, visited_nodes):
+        """
+        Update the  `visited_nodes` given a parent tree recursively.
+
+        :param parent: sub_tree of the form (node_word, subtree).
+        :param visited_nodes: list of visited words.
+        :return:
+        """
+        node_word, children_dict = parent
+        visited_nodes.append(node_word)
+        for dist in children_dict:
+            child = children_dict.get(dist)
+            if child is not None:
+                self._search_all_descendants(child, visited_nodes)
+
+    @property
+    def vocabulary(self):
+        """
+        Return all stored words in the bktree.
+
+        :return: list of words store in the bktree.
+        """
+        visited_nodes = []
+        self._search_all_descendants(self.tree, visited_nodes)
+        return sorted(visited_nodes)

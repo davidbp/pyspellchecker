@@ -1,12 +1,10 @@
 import re
 import errno
-import os
 import itertools
 from collections import Counter
 from typing import List, Callable, Optional, Tuple, Iterable, Set, Union
 
 import spacy
-import numpy as np
 from nltk.collocations import BigramCollocationFinder
 from nltk.corpus import words as words_nltk
 from editdistance import eval as edit_distance
