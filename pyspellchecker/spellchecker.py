@@ -5,7 +5,7 @@ from typing import List, Callable, Optional, Tuple, Iterable
 
 from nltk.collocations import BigramCollocationFinder
 from editdistance import eval as edit_distance
-from bktree import BKTree
+from .bktree import BKTree
 
 
 class SpellChecker:
@@ -200,8 +200,7 @@ class SpellChecker:
 
         def interpolation_probability(word1: str, word2: str):
             return (1 - self.lambda_interpolation) * probability_bigram(
-                word1, word2, self.bigram_freq_dict
-            ) + self.lambda_interpolation * prob_word(word2)
+                word1, word2) + self.lambda_interpolation * prob_word(word2)
 
         for index, word in enumerate(tokenized_sentence):
             if word not in self.vocabulary:
